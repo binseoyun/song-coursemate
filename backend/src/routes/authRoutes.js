@@ -10,4 +10,7 @@ router.post('/signup', authController.register);
 // POST http://localhost:3000/api/auth/login
 router.post('/login', authController.login);
 
+//POST hyttp://localhost:3000/api/auth/logout
+router.post('/logout', authController.logout);
+
 module.exports = router;

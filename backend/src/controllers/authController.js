@@ -60,3 +60,14 @@ exports.register = async (req, res) => {
             res.status(500).json({ message: '서버 오류가 발생했습니다.'});
         }
     };
+
+    //3. 로그아웃 controller
+    exports.logout = async (req, res) => {
+        try {
+            // 클라이언트 측에서 토큰을 삭제하도록 안내
+            res.status(200).json({ message: '로그아웃 성공' });
+        } catch (error) {
+            console.error('로그아웃 오류:', error);
+            res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+        }
+    };
