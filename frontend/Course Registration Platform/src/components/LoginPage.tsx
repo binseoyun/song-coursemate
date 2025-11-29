@@ -22,8 +22,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     
    //1. 요청 보낼 주소
    const url= isSignup
-   ? 'http://localhost:3000/api/auth/signup' // 회원가입 주소
-   : 'http://localhost:3000/api/auth/login'; // 로그인 주소
+   ? 'http://127.0.0.1:3000/api/auth/signup' // 회원가입 주소
+   : 'http://127.0.0.1:3000/api/auth/login'; // 로그인 주소
 
    //2. 백엔드로 보낼 데이터 준비
    const requestBody = isSignup

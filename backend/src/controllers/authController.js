@@ -17,19 +17,29 @@ exports.register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 12);
 
         //새로운 사용자 생성
-        await User.create({
+        const newUser= await User.create({
             studentId,
             password: hashedPassword,
             name,
             major
         });
-        res.status(201).json({ message: '회원가입이 완료되었습니다.'});
+        // 3. 회원가입 성공 시 바로 토큰 발급! 
+        const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+        res.status(201).json({ message: '회원가입이 완료되었습니다.',
+            token,
+            user: {
+                name:newUser.name,
+                studentId:newUser.studentId,
+                major:newUser.major
+            }
+        });
     } catch (error){
         console.error('회원가입 오류:', error);
         res.status(500).json({ message: '서버 오류가 발생했습니다.'});
 
     }
     };
+    
 
     //2. 로그인 controller
     exports.login = async (req, res) => {
