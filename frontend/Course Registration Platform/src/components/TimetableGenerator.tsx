@@ -18,30 +18,30 @@ type TimetableConditions = {
   preferLongBreak: boolean;
 };
 
-// --- [추가됨] 시간 충돌 계산을 위한 헬퍼 함수들 ---
+// --- [계산 함수] 시간 충돌 및 시간 변환 로직 (컴포넌트 밖) ---
 const parseTime = (timeStr: string) => {
   const [h, m] = timeStr.split(':').map(Number);
   return h + m / 60;
 };
 
 const checkConflict = (courseA: Course, courseB: Course) => {
-  // 1. 요일이 겹치는지 확인
+  // 1. 요일이 하나라도 겹치는지 확인
   const sameDays = courseA.day.filter(day => courseB.day.includes(day));
-  if (sameDays.length === 0) return false; // 요일이 아예 다르면 안 겹침
+  if (sameDays.length === 0) return false; // 요일이 다르면 충돌 없음
 
-  // 2. 시간 계산 (시작시간, 종료시간)
+  // 2. 시간 계산
   const startA = parseTime(courseA.time);
-  const durationA = courseA.day.length >= 2 ? 1.5 : courseA.credits; // 주2회면 1.5시간, 주1회면 학점만큼
+  const durationA = courseA.day.length >= 2 ? 1.5 : courseA.credits; // 주2회면 1.5시간, 아니면 학점만큼
   const endA = startA + durationA;
 
   const startB = parseTime(courseB.time);
   const durationB = courseB.day.length >= 2 ? 1.5 : courseB.credits;
   const endB = startB + durationB;
 
-  // 3. 시간 겹침 공식: (StartA < EndB) AND (EndA > StartB)
+  // 3. 교차 검증 공식: (A시작 < B끝) AND (A끝 > B시작)
   return (startA < endB) && (endA > startB);
 };
-// ----------------------------------------------------
+// -----------------------------------------------------------
 
 export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
@@ -64,6 +64,12 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
   const days = ['월', '화', '수', '목', '금'];
   const courseTypes = ['전체', '전공 필수', '전공 선택', '교양'];
 
+  // 현재 선택된 과목들의 상세 정보 객체들
+  const selectedCourseDetails = mockCourses.filter(c => selectedCourses.includes(c.id));
+  
+  // 현재 선택된 총 학점 계산
+  const totalSelectedCredits = selectedCourseDetails.reduce((sum, c) => sum + c.credits, 0);
+
   const filteredCourses = mockCourses.filter(course => {
     const matchesSearch = 
       course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,48 +82,50 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
     return matchesSearch && matchesCourseType;
   });
 
-  // --- [핵심 수정] 과목 선택 시 충돌 & 개수 체크 ---
+  // --- [핵심 로직] 과목 선택 시 유효성 검사 ---
   const handleToggleCourse = (courseId: string) => {
-    // 1. 이미 선택된 거면 -> 해제 (여긴 제한 없음)
+    // 1. 이미 선택된 과목이면 -> 해제 (제한 없음)
     if (selectedCourses.includes(courseId)) {
       setSelectedCourses(selectedCourses.filter(id => id !== courseId));
       return;
     }
 
-    // 선택하려는 과목 정보 찾기
+    // 선택하려는 과목 정보 가져오기
     const targetCourse = mockCourses.find(c => c.id === courseId);
     if (!targetCourse) return;
 
-    // 2. [체크] 7개 제한
+    // 2. [검사] 7개 제한
     if (selectedCourses.length >= 7) {
       alert("최대 7개까지만 선택할 수 있습니다.");
       return;
     }
 
-    // 3. [체크] 시간 충돌 여부
+    // 3. [검사] 21학점 제한
+    if (totalSelectedCredits + targetCourse.credits > 21) {
+      alert(`최대 21학점까지만 신청할 수 있습니다.\n(현재: ${totalSelectedCredits}학점 + 추가: ${targetCourse.credits}학점)`);
+      return;
+    }
+
+    // 4. [검사] 시간 충돌 여부
     let isConflict = false;
     let conflictName = "";
 
-    // 현재 선택된 모든 과목과 비교
     selectedCourses.forEach((id) => {
-      const selectedCourse = mockCourses.find(c => c.id === id);
-      if (selectedCourse && checkConflict(targetCourse, selectedCourse)) {
+      const existingCourse = mockCourses.find(c => c.id === id);
+      if (existingCourse && checkConflict(targetCourse, existingCourse)) {
         isConflict = true;
-        conflictName = selectedCourse.name;
+        conflictName = existingCourse.name;
       }
     });
 
     if (isConflict) {
       alert(`'${conflictName}' 수업과 시간이 겹쳐서 선택할 수 없습니다!`);
-      return; // 선택 취소
+      return;
     }
 
-    // 모든 관문 통과 -> 선택 목록에 추가
+    // 모든 검사 통과 -> 선택 목록에 추가
     setSelectedCourses([...selectedCourses, courseId]);
   };
-
-  const selectedCourseDetails = mockCourses.filter(c => selectedCourses.includes(c.id));
-  const totalSelectedCredits = selectedCourseDetails.reduce((sum, c) => sum + c.credits, 0);
 
   // --- 백엔드 API 호출 ---
   const generateTimetables = async () => {
@@ -129,6 +137,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
     setIsGenerating(true);
 
     try {
+      // Python 백엔드(5000번 포트)로 요청
       const response = await fetch('http://localhost:5000/api/schedule', {
         method: 'POST',
         headers: {
@@ -153,7 +162,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
       }
     } catch (error) {
       console.error("API Error:", error);
-      alert('서버와 연결할 수 없습니다. 백엔드(main.py)를 확인해주세요.');
+      alert('서버와 연결할 수 없습니다. 백엔드(main.py)가 실행 중인지 확인해주세요.');
     } finally {
       setIsGenerating(false);
     }
@@ -184,15 +193,18 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-gray-900 mb-4">1. 듣고 싶은 수업 선택</h3>
         
+        {/* 선택된 과목 요약 (배지 영역) */}
         <div className="mb-4 p-4 bg-blue-50 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-blue-900">선택된 과목: {selectedCourses.length}개</span>
-            <span className="text-blue-900">총 {totalSelectedCredits}학점</span>
+            <span className="text-blue-900 font-medium">선택된 과목: {selectedCourses.length}개</span>
+            <span className={`font-medium ${totalSelectedCredits > 21 ? 'text-red-600' : 'text-blue-900'}`}>
+              총 {totalSelectedCredits}학점 / 최대 21학점
+            </span>
           </div>
           {selectedCourseDetails.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
               {selectedCourseDetails.map(course => (
-                <div key={course.id} className="flex items-center space-x-2 bg-white px-3 py-1 rounded-full text-sm">
+                <div key={course.id} className="flex items-center space-x-2 bg-white px-3 py-1 rounded-full text-sm shadow-sm">
                   <span className="text-gray-700">{course.name} ({course.credits}학점)</span>
                   <button onClick={() => handleToggleCourse(course.id)} className="text-red-600 hover:text-red-700">
                     <X className="w-4 h-4" />
@@ -203,6 +215,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
           )}
         </div>
 
+        {/* 검색 및 필터 */}
         <div className="space-y-3 mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -227,6 +240,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
           </div>
         </div>
 
+        {/* 과목 리스트 (스크롤 영역) */}
         <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
           {filteredCourses.map(course => {
             const isSelected = selectedCourses.includes(course.id);
@@ -241,7 +255,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
                     <input type="checkbox" checked={isSelected} readOnly className="mt-1 w-4 h-4 text-blue-600" />
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="text-gray-900">{course.name}</h4>
+                        <h4 className="text-gray-900 font-medium">{course.name}</h4>
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{course.code}</span>
                       </div>
                       <div className="text-sm text-gray-600 space-x-4">
@@ -277,6 +291,37 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
             </div>
           </div>
           <div>
+            <label className="block text-gray-700 mb-2">원하는 공강 요일</label>
+            <div className="flex flex-wrap gap-2">
+              {days.map(day => (
+                <button
+                  key={day}
+                  onClick={() => {
+                    // 클릭 시 해당 요일을 조건에 추가/제거
+                    if (conditions.preferredDays.includes(day)) {
+                      setConditions({
+                        ...conditions,
+                        preferredDays: conditions.preferredDays.filter(d => d !== day)
+                      });
+                    } else {
+                      setConditions({
+                        ...conditions,
+                        preferredDays: [...conditions.preferredDays, day]
+                      });
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg border transition-colors ${
+                    conditions.preferredDays.includes(day)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="block text-gray-700 mb-2">시간 선호도</label>
             <div className="space-y-2">
               <label className="flex items-center space-x-2">
@@ -289,7 +334,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
               </label>
               <label className="flex items-center space-x-2">
                 <input type="checkbox" checked={conditions.preferLongBreak} onChange={(e) => setConditions({ ...conditions, preferLongBreak: e.target.checked })} className="w-4 h-4 text-blue-600" />
-                <span className="text-gray-700">긴 공강 선호 (점심시간 확보)</span>
+                <span className="text-gray-700">짧은 공강 선호</span>
               </label>
             </div>
           </div>
