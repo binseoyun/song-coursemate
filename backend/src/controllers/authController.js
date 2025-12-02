@@ -80,24 +80,10 @@ exports.login = async (req, res) => {
             console.error('로그아웃 오류:', error);
             res.status(500).json({ message: '서버 오류가 발생했습니다.' });
         }
-    };
-         // DB의 'major' 컬럼을 프론트엔드 타입인 'department'로 매핑해서 보냄
-        res.status(200).json({ 
-            message: '로그인 성공',
-            token,
-            user: {
-                id: user.id,
-                name: user.name, 
-                studentId: user.studentId, 
-                department: user.major 
-            }
-        });
-    } catch (error){
-        console.error('로그인 오류:', error);
-        res.status(500).json({ message: '서버 오류가 발생했습니다.'});
-    }
-};
 
+    };
+
+//3.mypage
 exports.getUserInfo = async (req, res) => {
     try {
         // authMiddleware가 토큰을 검증하고 req.user.id에 사용자 ID를 넣어줬다고 가정
