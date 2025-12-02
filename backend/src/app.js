@@ -6,13 +6,11 @@ const User = require('./models/User'); // 모델 불러오기
 const Class = require('./models/class'); // Class 모델 불러오기
 const ClassSchedule = require('./models/ClassSchedule');
 const authRoutes = require('./routes/authRoutes');
+  //ai 관련
+const aiRoutes=require('./routes/aiRoutes')
 require('dotenv').config();
 
 const app = express();
-
-  //ai 관련
-const aiRoutes=require('./routes/aiRoutes')
-app.use('/api/ai',aiRoutes);
 
 
 
@@ -25,6 +23,11 @@ app.use(express.json());
 
 // /api/auth → authRoutes
 app.use('/api/auth', authRoutes);
+
+
+app.use('/api/ai',aiRoutes);
+
+
 
 //api 경로 설정(수업 목록) /api/courses요청 => 수업 조회 
 // 클래스와 스케줄 관계 설정

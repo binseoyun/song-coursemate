@@ -18,7 +18,7 @@ DB조회 코드 삭제(python이 mock_db 가지고 있어서)
 */
         // 2. Python AI 서버로 요청 보내기
         // (주의: Python 서버는 5000번 포트)
-        const response = await axios.post('http://127.0.0.1:5000/recommend', {
+        const response = await axios.post('http://localhost:5000/recommend', {
             major,
             job_interest: jobInterest,
             //courses: courseData

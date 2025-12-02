@@ -36,9 +36,9 @@ const jobFields: JobField[] = [
   },
 ];
 
-//백엔드 API를 8000로 호출(연결이 안되서 ai-server와 연결)
+//백엔드 API를 8000로 호출
 
-const API_BASE_URL='http://localhost:5000/api/ai'
+const API_BASE_URL='http://localhost:8000/api/ai/recommend'
 
 export function AIRecommendation({ user, onToggleInterest, interestedCourses }: AIRecommendationProps) {
   const [selectedField, setSelectedField] = useState<string | null>(null);
@@ -249,7 +249,7 @@ export function AIRecommendation({ user, onToggleInterest, interestedCourses }: 
           <h4 className="text-blue-800 mb-2 font-bold">💡 실시간 AI 추천 받는 방법</h4>
           <ul className="text-blue-700 space-y-1 text-sm">
             <li>• 위에서 관심있는 직무 분야를 선택해주세요.</li>
-            <li>• OpenAI(ChatGPT)가 학생님의 전공과 직무를 분석합니다.</li>
+            <li>• OpenAI(Gemini)가 학생님의 전공과 직무를 분석합니다.</li>
             <li>• 학교 데이터베이스에 있는 실제 강의 중 최적의 과목을 찾아냅니다.</li>
           </ul>
         </div>

@@ -7,7 +7,9 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 
 
+
 import google.generativeai as genai
+
 import os
 from dotenv import load_dotenv
 
@@ -21,8 +23,8 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# 2. 모델 설정 (무료로 빠르고 성능 좋은 gemini-1.5-flash 사용)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# 2. 모델 설정
+model = genai.GenerativeModel("models/gemini-pro-latest")
 
 
 app = FastAPI()
@@ -89,7 +91,7 @@ def create_schedule_endpoint(request: ScheduleRequest):
 
 #수업 추천
 class RecommendationRequest(BaseModel):
-    major: str #학생 전공
+    major: str | None= None #학생 전공없어도 에러 안남(컴퓨터과학과 학생을 위한 서비스이니)
     job_interest: str #희망 직무
     #courses: list #DB에 있는 전체 강의 목록
 
@@ -104,6 +106,10 @@ def recommand_courses(req: RecommendationRequest):
             f"- {c['code']} {c['name']} ({c['department']}): {c['time']} {','.join(c['day'])}" 
             for c in all_courses
         ])
+        if req.major:
+            student_intro=f"나는 {req.major} 전공 학생이고,"
+        else:
+            student_intro="나는 컴퓨터 과학과 학생이고,"    
         
         # 3. 프롬프트 작성 (JSON 형식을 강력하게 요구)
         prompt = f"""
