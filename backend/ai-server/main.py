@@ -1,9 +1,11 @@
 # main.py
+import json
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+
 
 import google.generativeai as genai
 import os
@@ -34,53 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#수업 추천
-class RecommendationRequest(BaseModel):
-    major: str #학생 전공
-    job_interest: str #희망 직무
-    courses: list #DB에 있는 전체 강의 목록
 
-@app.post("/recommend")
-def recommand_courses(req: RecommendationRequest):
-    try:
-        # 강의 목록 텍스트 변환
-        courses_text = "\n".join([f"- {c['code']} {c['name']}: {c['description']}" for c in req.courses])
-        
-        # 프롬프트 작성 (JSON 형식을 강력하게 요구)
-        prompt = f"""
-        너는 대학교 수강신청 도우미 AI야.
-        나는 {req.major} 전공 학생이고, 희망 직무는 '{req.job_interest}'야.
-        
-        아래는 우리 학교에 개설된 강의 목록이야:
-        {courses_text}
-
-        이 중에서 내 희망 직무와 가장 관련성이 높고 도움이 될만한 강의 3~4개를 추천해줘.
-        
-        [중요] 반드시 아래와 같은 순수한 JSON 형식으로만 답변해. 마크다운(```json)이나 다른 말은 절대 넣지 마.
-        {{
-            "recommended_codes": ["과목코드1", "과목코드2", "과목코드3"]
-        }}
-        """
-
-        # 3. Gemini에게 질문하기
-        response = model.generate_content(prompt)
-        
-        # 4. 답변 전처리 (Gemini가 가끔 ```json ... ``` 같은 마크다운을 붙여서 줌)
-        response_text = response.text
-        
-        # 마크다운 문법 제거 (실수 방지용)
-        if "```json" in response_text:
-            response_text = response_text.replace("```json", "").replace("```", "")
-        elif "```" in response_text:
-            response_text = response_text.replace("```", "")
-            
-        # 공백 제거 후 파싱
-        return json.loads(response_text.strip())
-
-    except Exception as e:
-        print(f"AI Error: {e}")
-        # 에러가 나면 빈 리스트라도 반환해서 프론트가 멈추지 않게 함
-        raise HTTPException(status_code=500, detail=str(e))
     
 
 
@@ -126,6 +82,64 @@ def create_schedule_endpoint(request: ScheduleRequest):
             "PLAN C": plan_c
         }
     }
+
+
+#수업 추천
+class RecommendationRequest(BaseModel):
+    major: str #학생 전공
+    job_interest: str #희망 직무
+    #courses: list #DB에 있는 전체 강의 목록
+
+@app.post("/recommend")
+def recommand_courses(req: RecommendationRequest):
+    try:
+        # 1. mock_db.py에서 강의 데이터 직접 로딩
+        all_courses = get_all_courses()
+
+       # 2. AI에게 보낼 텍스트로 변환
+        courses_text = "\n".join([
+            f"- {c['code']} {c['name']} ({c['department']}): {c['time']} {','.join(c['day'])}" 
+            for c in all_courses
+        ])
+        
+        # 3. 프롬프트 작성 (JSON 형식을 강력하게 요구)
+        prompt = f"""
+        너는 대학교 수강신청 도우미 AI야.
+        나는 {req.major} 전공 학생이고, 희망 직무는 '{req.job_interest}'야.
+        
+        아래는 우리 학교에 개설된 강의 목록이야:
+        {courses_text}
+
+        이 중에서 내 희망 직무와 가장 관련성이 높고 도움이 될만한 강의 3~4개를 추천해줘.
+        
+        [중요] 반드시 아래와 같은 순수한 JSON 형식으로만 답변해. 마크다운(```json)이나 다른 말은 절대 넣지 마.
+        {{
+            "recommended_codes": ["과목코드1", "과목코드2", "과목코드3"]
+        }}
+        """
+
+        # 4. Gemini에게 질문하기
+        response = model.generate_content(prompt)
+        response_text = response.text.replace("```json", "").replace("```", "").strip()
+        result_json = json.loads(response_text)
+        
+        # 5. [중요] AI가 추천한 '코드'를 가지고, 실제 '강의 정보(객체)'를 찾아서 반환
+        recommended_codes = result_json.get("recommended_codes", [])
+        
+        # mock_db 데이터 중에서 추천된 과목만 필터링
+        final_recommendations = [
+            c for c in all_courses 
+            if c["code"] in recommended_codes
+        ]
+        
+        return final_recommendations
+        
+        
+
+    except Exception as e:
+        print(f"AI Error: {e}")
+        # 에러가 나면 빈 리스트라도 반환해서 프론트가 멈추지 않게 함
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)

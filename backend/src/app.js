@@ -8,7 +8,7 @@ require('dotenv').config();
 
 const app = express();
 
-//ai 관련
+  //ai 관련
 const aiRoutes=require('./routes/aiRoutes')
 app.use('/api/ai',aiRoutes);
 
@@ -44,3 +44,4 @@ sequelize.sync({ force: false })
   .catch((err) => {
     console.error('DB 연결 실패:', err);
   });
+
