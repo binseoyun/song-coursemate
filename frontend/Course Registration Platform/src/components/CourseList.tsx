@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Heart, AlertCircle, Users, Database, Loader2 } from 'lucide-react';
-import { mockCourses } from '../data/mockData';
+import { Search, Heart, AlertCircle, Users, Loader2 } from 'lucide-react';
 import type { Course } from '../App';
 
 type CourseListProps = {
-  courses?: Course[];
+  courses: Course[];
   interestedCourses: string[];
   onToggleInterest: (courseId: string) => void;
   isLoading?: boolean;
@@ -25,11 +24,9 @@ export function CourseList({
   const [sortBy, setSortBy] = useState<'name' | 'credits' | 'enrollment'>('name');
 
   const courseTypes = ['전체', '전공필수', '전공선택', '교양'];
-  const dataSource = courses && courses.length > 0 ? courses : mockCourses;
-  const usingMockData = !courses || courses.length === 0;
 
   const filteredCourses = useMemo(() => {
-    return dataSource
+    return courses
       .filter((course) => {
         const courseName = (course.name ?? '').toLowerCase();
         const courseCode = (course.code ?? '').toLowerCase();
@@ -58,7 +55,7 @@ export function CourseList({
         }
         return 0;
       });
-  }, [dataSource, searchTerm, selectedCourseType, sortBy]);
+  }, [courses, searchTerm, selectedCourseType, sortBy]);
 
   const getEnrollmentStatus = (enrolled: number, capacity: number) => {
     if (!capacity) {
@@ -93,7 +90,7 @@ export function CourseList({
   return (
     <div className="space-y-6">
       <div>
-        {(isLoading || error || usingMockData) && (
+        {(isLoading || error) && (
           <div className="mb-4 space-y-2">
             {isLoading && (
               <div className="flex items-center space-x-2 text-blue-600 text-sm">
@@ -103,14 +100,8 @@ export function CourseList({
             )}
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
-                서버에서 수업 목록을 가져오지 못했습니다. 임시로 mock 데이터를 표시합니다.<br />
+                서버에서 수업 목록을 가져오지 못했습니다.<br />
                 오류: {error}
-              </div>
-            )}
-            {usingMockData && !isLoading && !error && (
-              <div className="flex items-center space-x-2 text-sm text-amber-600 bg-amber-50 border border-amber-100 rounded px-3 py-2">
-                <Database className="w-4 h-4" />
-                <span>아직 백엔드 수업 데이터가 없어서 mock 데이터가 표시되고 있습니다.</span>
               </div>
             )}
           </div>

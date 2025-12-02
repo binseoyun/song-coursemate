@@ -54,7 +54,10 @@ class ScheduleRequest(BaseModel):
 
 @app.post("/api/schedule")
 def create_schedule_endpoint(request: ScheduleRequest):
-    courses = get_all_courses()
+    try:
+        courses = get_all_courses()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     
     # 사용자가 선택한 과목이 0개면 에러 처리 
     if not request.selected_course_ids:

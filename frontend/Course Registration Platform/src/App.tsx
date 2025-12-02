@@ -367,8 +367,8 @@ export default function App() {
         )}
         {currentPage === 'timetable' && (
           <TimetableGenerator
+            courses={courses}
             onSave={handleSaveTimetable}
-            interestedCourses={interestedCourses}
           />
         )}
         {currentPage === 'courses' && (
@@ -392,6 +392,7 @@ export default function App() {
             user={user!}
             savedTimetables={savedTimetables}
             interestedCourses={interestedCourses}
+            courses={courses}
           />
         )}
       </main>

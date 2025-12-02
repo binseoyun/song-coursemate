@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Timetable, Course } from '../App';
 import { TimetableView } from './TimetableView';
 import { Loader2, Save, RefreshCw, X, Search } from 'lucide-react';
-import { mockCourses } from '../data/mockData';
 
 type TimetableGeneratorProps = {
+  courses: Course[];
   onSave: (timetable: Timetable) => void;
-  interestedCourses: string[];
 };
 
 type TimetableConditions = {
@@ -20,8 +19,9 @@ type TimetableConditions = {
 
 // --- [계산 함수] 시간 충돌 및 시간 변환 로직 (컴포넌트 밖) ---
 const parseTime = (timeStr: string) => {
-  const [h, m] = timeStr.split(':').map(Number);
-  return h + m / 60;
+  if (!timeStr) return 0;
+  const [h = '0', m = '0'] = timeStr.split(':');
+  return parseInt(h, 10) + parseInt(m, 10) / 60;
 };
 
 const checkConflict = (courseA: Course, courseB: Course) => {
@@ -43,7 +43,7 @@ const checkConflict = (courseA: Course, courseB: Course) => {
 };
 // -----------------------------------------------------------
 
-export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
+export function TimetableGenerator({ courses, onSave }: TimetableGeneratorProps) {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourseType, setSelectedCourseType] = useState('전체');
@@ -62,25 +62,34 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
   const [selectedPlan, setSelectedPlan] = useState<'A' | 'B' | 'C'>('A');
 
   const days = ['월', '화', '수', '목', '금'];
-  const courseTypes = ['전체', '전공 필수', '전공 선택', '교양'];
+  const courseTypes = ['전체', '전공필수', '전공선택', '교양'];
 
   // 현재 선택된 과목들의 상세 정보 객체들
-  const selectedCourseDetails = mockCourses.filter(c => selectedCourses.includes(c.id));
+  const selectedCourseDetails = useMemo(
+    () => courses.filter((c) => selectedCourses.includes(c.id)),
+    [courses, selectedCourses]
+  );
   
   // 현재 선택된 총 학점 계산
   const totalSelectedCredits = selectedCourseDetails.reduce((sum, c) => sum + c.credits, 0);
 
-  const filteredCourses = mockCourses.filter(course => {
-    const matchesSearch = 
-      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.professor.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCourseType = 
-      selectedCourseType === '전체' || course.courseType === selectedCourseType;
-    
-    return matchesSearch && matchesCourseType;
-  });
+  const filteredCourses = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    const normalizeType = (value: string) => value.replace(/\s+/g, '');
+
+    return courses.filter((course) => {
+      const matchesSearch =
+        course.name.toLowerCase().includes(searchLower) ||
+        course.code.toLowerCase().includes(searchLower) ||
+        course.professor.toLowerCase().includes(searchLower);
+
+      const matchesCourseType =
+        selectedCourseType === '전체' ||
+        normalizeType(course.courseType) === normalizeType(selectedCourseType);
+
+      return matchesSearch && matchesCourseType;
+    });
+  }, [courses, searchTerm, selectedCourseType]);
 
   // --- [핵심 로직] 과목 선택 시 유효성 검사 ---
   const handleToggleCourse = (courseId: string) => {
@@ -91,7 +100,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
     }
 
     // 선택하려는 과목 정보 가져오기
-    const targetCourse = mockCourses.find(c => c.id === courseId);
+    const targetCourse = courses.find(c => c.id === courseId);
     if (!targetCourse) return;
 
     // 2. [검사] 7개 제한
@@ -111,7 +120,7 @@ export function TimetableGenerator({ onSave }: TimetableGeneratorProps) {
     let conflictName = "";
 
     selectedCourses.forEach((id) => {
-      const existingCourse = mockCourses.find(c => c.id === id);
+      const existingCourse = courses.find(c => c.id === id);
       if (existingCourse && checkConflict(targetCourse, existingCourse)) {
         isConflict = true;
         conflictName = existingCourse.name;

@@ -1,19 +1,19 @@
-import { User, Timetable } from '../App';
+import { User, Timetable, Course } from '../App';
 import { TimetableView } from './TimetableView'; // 경로 수정
 import { useState } from 'react';
 import { User as UserIcon, Calendar, Heart, Clock, BookOpen } from 'lucide-react';
-import { mockCourses } from '../data/mockData'; // 경로 수정
 
 type MyPageProps = {
   user: User;
   savedTimetables: Timetable[];
   interestedCourses: string[];
+  courses: Course[];
 }
 
-export function MyPage({ user, savedTimetables, interestedCourses }: MyPageProps) {
+export function MyPage({ user, savedTimetables, interestedCourses, courses }: MyPageProps) {
   const [selectedTimetable, setSelectedTimetable] = useState<Timetable | null>(null);
 
-  const interestedCourseDetails = mockCourses.filter(c => 
+  const interestedCourseDetails = courses.filter((c) =>
     interestedCourses.includes(c.id)
   );
 
