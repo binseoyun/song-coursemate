@@ -20,18 +20,18 @@ app.add_middleware(
 
 # 프론트엔드 요청 데이터 구조 정의
 class ScheduleRequest(BaseModel):
-    # 사용자가 선택한 과목 ID 리스트 (예: ["1", "3"])
+    # 사용자가 선택한 과목 ID 리스트 
     selected_course_ids: List[str] 
     
     # 시간표 조건 (프론트엔드 변수명과 일치시킴)
     preferences: Dict[str, Any]
-    # 예: { "minCredits": 12, "maxCredits": 18, "avoidMorning": true ... }
+    
 
 @app.post("/api/schedule")
 def create_schedule_endpoint(request: ScheduleRequest):
     courses = get_all_courses()
     
-    # 사용자가 선택한 과목이 0개면 에러 처리 (프론트에서 막지만 한번 더 체크)
+    # 사용자가 선택한 과목이 0개면 에러 처리 
     if not request.selected_course_ids:
         raise HTTPException(status_code=400, detail="최소 1개 이상의 과목을 선택해주세요.")
 
