@@ -6,7 +6,6 @@ import { CourseList } from './components/CourseList';
 import { AIRecommendation } from './components/AIRecommendation';
 import { MyPage } from './components/MyPage';
 
-
 export type Course = {
   id: string;
   code: string;
@@ -44,66 +43,120 @@ export default function App() {
   const [savedTimetables, setSavedTimetables] = useState<Timetable[]>([]);
   const [interestedCourses, setInterestedCourses] = useState<string[]>([]);
 
-//새로 고침 시 로그인이 풀리지 않게
-  useEffect(()=>{
-    const token= localStorage.getItem('token');
-    if(token){
-      //토큰이 있다면 홈으로 보내거나, 백엔드에 /api/auth/me 에 토큰이 유효한지 확인
+  // 🔹 처음 앱 켰을 때 한 번만 실행: 토큰 있으면 로그인 상태로 간주
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
       setCurrentPage('home');
-      //나중에 백엔드에서 내 정보를 가져오는 api를 꼭 만들어야 함
+      // TODO: 나중에 /api/auth/me 로 유저 정보 불러오면 setUser도 같이
     }
-  })
+  }, []);
 
+  // 🔹 로그인 시: 유저 정보 저장 + 이 학생의 저장된 시간표/관심 과목 로드
   const handleLogin = (userData: User) => {
     setUser(userData);
+
+    // 1) 저장된 시간표 불러오기
+    const savedTimetablesRaw = localStorage.getItem(
+      `timetables_${userData.studentId}`
+    );
+    if (savedTimetablesRaw) {
+      try {
+        const parsed = JSON.parse(savedTimetablesRaw) as Timetable[];
+        // createdAt이 문자열로 저장되어 있을 수 있으니 Date로 한 번 감싸줌
+        const restored = parsed.map((t) => ({
+          ...t,
+          createdAt: new Date(t.createdAt),
+        }));
+        setSavedTimetables(restored);
+      } catch (e) {
+        console.error('저장된 시간표 파싱 오류:', e);
+        setSavedTimetables([]);
+      }
+    } else {
+      setSavedTimetables([]);
+    }
+
+    // 2) 저장된 관심 과목 불러오기
+    const savedInterestedRaw = localStorage.getItem(
+      `interested_${userData.studentId}`
+    );
+    if (savedInterestedRaw) {
+      try {
+        const parsed = JSON.parse(savedInterestedRaw) as string[];
+        setInterestedCourses(parsed);
+      } catch (e) {
+        console.error('저장된 관심 과목 파싱 오류:', e);
+        setInterestedCourses([]);
+      }
+    } else {
+      setInterestedCourses([]);
+    }
+
     setCurrentPage('home');
   };
 
-  //로그아웃 하면 login 페이지로 이동 + 실제 브라우저에 저장된 토큰 지우도록 백엔드에 알리는 기능 추가
-  const handleLogout =  async() => {
-    try{
-      //1. 백엔드에 로그아웃 요청 보냐기
+  // 🔹 로그아웃: 백엔드에 알리고, 토큰/상태만 정리 (시간표는 localStorage에 남김)
+  const handleLogout = async () => {
+    try {
       await fetch('http://localhost:3000/api/auth/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token}`, //필요시 토큰 첨부
         },
       });
-
-    }catch(error){
+    } catch (error) {
       console.error('Logout failed:', error);
-
-    }
-    finally{
-      //서버가 죽거나 인터넷 연결이 끊어져도 사용자 화면에서는 무조건 로그아웃 시켜야 함
-      //2. 로컬 브라우저에 저장된 유저 정보 및 토큰 지우기
+    } finally {
+      // 1) 토큰 제거
       localStorage.removeItem('token');
 
-      //3. 앱 상태 초기화 및 로그인 페이지로 이동
-    setUser(null);
-    setCurrentPage('login');
-    setSavedTimetables([]);
-    setInterestedCourses([]);
-  };
-}
-
-  const handleSaveTimetable = (timetable: Timetable) => {
-    setSavedTimetables([...savedTimetables, timetable]);
-  };
-
-  const handleToggleInterest = (courseId: string) => {
-    if (interestedCourses.includes(courseId)) {
-      setInterestedCourses(interestedCourses.filter(id => id !== courseId));
-    } else {
-      setInterestedCourses([...interestedCourses, courseId]);
+      // 2) 상태 초기화
+      setUser(null);
+      setCurrentPage('login');
+      setSavedTimetables([]);
+      setInterestedCourses([]);
     }
   };
 
+  // 🔹 시간표 저장(메모리 상태)
+  const handleSaveTimetable = (timetable: Timetable) => {
+    setSavedTimetables((prev) => [...prev, timetable]);
+  };
+
+  // 🔹 관심 과목 토글
+  const handleToggleInterest = (courseId: string) => {
+    setInterestedCourses((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
+
+  // 🔹 savedTimetables 변경될 때마다 localStorage에도 반영 (로그인된 상태일 때만)
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(
+      `timetables_${user.studentId}`,
+      JSON.stringify(savedTimetables)
+    );
+  }, [savedTimetables, user]);
+
+  // 🔹 관심 과목도 localStorage에 저장
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(
+      `interested_${user.studentId}`,
+      JSON.stringify(interestedCourses)
+    );
+  }, [interestedCourses, user]);
+
+  // 로그인 페이지
   if (currentPage === 'login') {
     return <LoginPage onLogin={handleLogin} />;
   }
 
+  // 나머지 페이지
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -111,7 +164,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
-              <h1 
+              <h1
                 className="text-blue-600 cursor-pointer"
                 onClick={() => setCurrentPage('home')}
               >
@@ -121,7 +174,9 @@ export default function App() {
                 <button
                   onClick={() => setCurrentPage('home')}
                   className={`px-3 py-2 rounded-md ${
-                    currentPage === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                    currentPage === 'home'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   홈
@@ -129,7 +184,9 @@ export default function App() {
                 <button
                   onClick={() => setCurrentPage('timetable')}
                   className={`px-3 py-2 rounded-md ${
-                    currentPage === 'timetable' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                    currentPage === 'timetable'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   시간표 생성
@@ -137,7 +194,9 @@ export default function App() {
                 <button
                   onClick={() => setCurrentPage('courses')}
                   className={`px-3 py-2 rounded-md ${
-                    currentPage === 'courses' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                    currentPage === 'courses'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   수업 목록
@@ -145,7 +204,9 @@ export default function App() {
                 <button
                   onClick={() => setCurrentPage('ai')}
                   className={`px-3 py-2 rounded-md ${
-                    currentPage === 'ai' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                    currentPage === 'ai'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   AI 수업 추천
@@ -153,7 +214,9 @@ export default function App() {
                 <button
                   onClick={() => setCurrentPage('mypage')}
                   className={`px-3 py-2 rounded-md ${
-                    currentPage === 'mypage' ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
+                    currentPage === 'mypage'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   마이페이지
@@ -179,26 +242,26 @@ export default function App() {
           <HomePage onNavigate={setCurrentPage} user={user!} />
         )}
         {currentPage === 'timetable' && (
-          <TimetableGenerator 
+          <TimetableGenerator
             onSave={handleSaveTimetable}
             interestedCourses={interestedCourses}
           />
         )}
         {currentPage === 'courses' && (
-          <CourseList 
+          <CourseList
             interestedCourses={interestedCourses}
             onToggleInterest={handleToggleInterest}
           />
         )}
         {currentPage === 'ai' && (
-          <AIRecommendation 
+          <AIRecommendation
             user={user!}
             onToggleInterest={handleToggleInterest}
             interestedCourses={interestedCourses}
           />
         )}
         {currentPage === 'mypage' && (
-          <MyPage 
+          <MyPage
             user={user!}
             savedTimetables={savedTimetables}
             interestedCourses={interestedCourses}
