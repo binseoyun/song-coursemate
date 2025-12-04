@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-service
+  namespace: sugang-system
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: db
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: sugang-system
+spec:
+  serviceName: "db-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: mysql
+        image: my-database:v1 # 로컬 빌드 이미지 사용
+        imagePullPolicy: Never
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: db-password
+        - name: MYSQL_DATABASE
+          value: "cloudsystem_db"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: db-persistent-storage
+          mountPath: /var/lib/mysql
+  # PVC 자동 생성 (데이터 영구 보존)
+  volumeClaimTemplates:
+  - metadata:
+      name: db-persistent-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
