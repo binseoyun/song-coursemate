@@ -149,7 +149,7 @@ export function AIRecommendation({ user, onToggleInterest, interestedCourses }: 
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4 animate-pulse" />
           <h3 className="text-gray-900 mb-2">AI 분석 중...</h3>
-          <p className="text-gray-600">학생님의 성향과 커리큘럼을 분석하고 있습니다</p>
+          <p className="text-gray-600">학생님의 성향과 커리큘럼을 분석하고 있습니다. 30초 정도 소요됩니다.</p>
         </div>
       )}
 

@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  db:
+    image: mysql:8
+    container_name: cloud-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: cloudsystem_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3306:3306"            # 로컬에서 직접 MySQL 접속하고 싶으면 유지
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build: ./backend
+    container_name: course-backend
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db              # ⭐ 중요: localhost 대신 db
+      DB_PORT: 3306
+      DB_NAME: cloudsystem_db
+      DB_USER: appuser
+      DB_PASSWORD: apppassword
+      NODE_ENV: production
+      PORT: 8000               # 백엔드 서버 포트 (app.js에서 사용하는 포트로 맞추기)
+      JWT_SECRET: jwt1234!
+    ports:
+      - "8000:8000"
+    command: sh -c "node src/seedData.js && node src/app.js"
+
+  ai-server:
+    build: ./backend/ai-server
+    container_name: course-ai-server
+    environment:
+      GEMINI_API_KEY: "네_제미나이_API키"
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: "./frontend/Course Registration Platform"
+    container_name: course-frontend
+    depends_on:
+      - backend
+      - ai-server
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:

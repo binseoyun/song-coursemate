@@ -60,11 +60,17 @@ exports.login = async (req, res) => {
            //유저 DB ID인 user.id를 토큰에 담아줌
           const token = jwt.sign({ id:user.id}, process.env.JWT_SECRET, { expiresIn: '1h'});
               
-              res.status(200).json({ 
-                    message: '로그인 성공',
-                    token,
-                user:{name: user.name, studentId: user.studentId}
-             });
+              res.status(200).json({
+                message: '로그인 성공',
+                token,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    studentId: user.studentId,
+                    major: user.major,        // 프론트에서 user.major 로 읽음
+                    department: user.major,   // 혹시 department로 쓸 경우 대비
+                },
+                });
         } catch (error){
             console.error('로그인 오류:', error);
             res.status(500).json({ message: '서버 오류가 발생했습니다.'});
