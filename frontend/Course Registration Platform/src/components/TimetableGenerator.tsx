@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Timetable, Course } from '../App';
+import { Timetable, Course, TimetablePayload } from '../App';
 import { TimetableView } from './TimetableView';
 import { Loader2, Save, RefreshCw, X, Search } from 'lucide-react';
 
 type TimetableGeneratorProps = {
   courses: Course[];
-  onSave: (timetable: Timetable) => void;
+  onSave: (payload: TimetablePayload) => Promise<void> | void;
+  isSaving?: boolean;
 };
 
 type TimetableConditions = {
@@ -43,7 +44,7 @@ const checkConflict = (courseA: Course, courseB: Course) => {
 };
 // -----------------------------------------------------------
 
-export function TimetableGenerator({ courses, onSave }: TimetableGeneratorProps) {
+export function TimetableGenerator({ courses, onSave, isSaving = false }: TimetableGeneratorProps) {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourseType, setSelectedCourseType] = useState('전체');
@@ -177,14 +178,22 @@ export function TimetableGenerator({ courses, onSave }: TimetableGeneratorProps)
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const timetableToSave = generatedTimetables[selectedPlan === 'A' ? 0 : selectedPlan === 'B' ? 1 : 2];
-    if (timetableToSave) {
-      onSave({
-        ...timetableToSave,
+    if (!timetableToSave) return;
+
+    try {
+      await onSave({
         name: `${timetableToSave.name} - ${new Date().toLocaleDateString('ko-KR')}`,
+        courses: timetableToSave.courses,
       });
       alert('시간표가 저장되었습니다!');
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : '시간표를 저장하는 중 오류가 발생했습니다.'
+      );
     }
   };
 
@@ -360,8 +369,12 @@ export function TimetableGenerator({ courses, onSave }: TimetableGeneratorProps)
             <h3 className="text-gray-900">생성된 시간표</h3>
             <div className="flex items-center space-x-2">
               <span className="text-gray-600">총 {totalCredits}학점</span>
-              <button onClick={handleSave} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2">
-                <Save className="w-4 h-4" /><span>저장하기</span>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <Save className="w-4 h-4" /><span>{isSaving ? '저장 중...' : '저장하기'}</span>
               </button>
             </div>
           </div>

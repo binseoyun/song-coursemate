@@ -3,7 +3,7 @@ import { User } from '../App';
 import { LogIn, UserPlus, Loader2 } from 'lucide-react';
 
 type LoginPageProps = {
-  onLogin: (user: User) => void;
+  onLogin: (user: User, token: string) => Promise<void> | void;
 };
 
 // 백엔드 API 주소 (Docker 환경: 8000번 포트)
@@ -73,9 +73,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         // 로그인 성공 -> 백엔드에서 받은 '진짜 유저 정보' 사용!
         const { user, token } = result;
         
-        // 토큰 저장 (나중에 필요할 수 있음)
-        localStorage.setItem('accessToken', token);
-
         // App.tsx에 전달할 유저 객체 생성
         const realUser: User = {
           id: user.id || 'temp-id',
@@ -85,7 +82,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           department: user.department || user.major, // DB에 저장된 진짜 학과
         };
 
-        onLogin(realUser); 
+        await onLogin(realUser, token); 
       }
 
     } catch (err: any) {

@@ -27,6 +27,24 @@ genai.configure(api_key=GEMINI_API_KEY)
 GENAI_MODEL = os.getenv("GENAI_MODEL", "models/gemini-pro-latest")
 model = genai.GenerativeModel(GENAI_MODEL)
 
+DEFAULT_JOB_RECOMMENDATIONS = {
+    "backend": ["CS301", "CS302", "CS303", "CS304"],
+    "data": ["CS303", "STAT301", "STAT302", "CS305"],
+    "public": ["ECON301", "PSY301", "MGT301", "ECON302"],
+    "marketing": ["MGT302", "PSY301", "STAT301", "MGT303"],
+    "finance": ["ECON301", "ECON302", "STAT301", "MGT301"],
+    "product": ["CS301", "MGT302", "PSY301", "MGT303"],
+}
+
+job_config_raw = os.getenv("JOB_RECOMMENDATION_CONFIG")
+if job_config_raw:
+    try:
+        JOB_RECOMMENDATION_RULES = json.loads(job_config_raw)
+    except json.JSONDecodeError:
+        JOB_RECOMMENDATION_RULES = DEFAULT_JOB_RECOMMENDATIONS
+else:
+    JOB_RECOMMENDATION_RULES = DEFAULT_JOB_RECOMMENDATIONS
+
 
 app = FastAPI()
 
@@ -40,10 +58,9 @@ app.add_middleware(
 )
 
 
-    
-
-
-
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 
 # 프론트엔드 요청 데이터 구조 정의

@@ -36,6 +36,12 @@ const Class = sequelize.define('Class', {
     type: DataTypes.STRING,
     allowNull: false,
     comment: '전공 필수, 전공 선택, 교양'
+  },
+  demandStatus: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'NORMAL',
+    comment: '수요 상태: NORMAL, NEAR, FULL 등'
   }
 }, {
   timestamps: true,

@@ -8,9 +8,10 @@ type MyPageProps = {
   savedTimetables: Timetable[];
   interestedCourses: string[];
   courses: Course[];
+  onDeleteTimetable?: (timetableId: string) => void;
 }
 
-export function MyPage({ user, savedTimetables, interestedCourses, courses }: MyPageProps) {
+export function MyPage({ user, savedTimetables, interestedCourses, courses, onDeleteTimetable }: MyPageProps) {
   const [selectedTimetable, setSelectedTimetable] = useState<Timetable | null>(null);
 
   const interestedCourseDetails = courses.filter((c) =>
@@ -124,14 +125,24 @@ export function MyPage({ user, savedTimetables, interestedCourses, courses }: My
                       {' '}{new Date(timetable.createdAt).toLocaleDateString('ko-KR')}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setSelectedTimetable(
-                      selectedTimetable?.id === timetable.id ? null : timetable
+                  <div className="flex items-center space-x-2">
+                    {onDeleteTimetable && (
+                      <button
+                        onClick={() => onDeleteTimetable(timetable.id)}
+                        className="px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                      >
+                        삭제
+                      </button>
                     )}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                  >
-                    {selectedTimetable?.id === timetable.id ? '접기' : '보기'}
-                  </button>
+                    <button
+                      onClick={() => setSelectedTimetable(
+                        selectedTimetable?.id === timetable.id ? null : timetable
+                      )}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                    >
+                      {selectedTimetable?.id === timetable.id ? '접기' : '보기'}
+                    </button>
+                  </div>
                 </div>
 
                 {selectedTimetable?.id === timetable.id && (

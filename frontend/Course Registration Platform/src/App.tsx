@@ -37,6 +37,11 @@ export type Timetable = {
   createdAt: Date;
 };
 
+export type TimetablePayload = {
+  name: string;
+  courses: Course[];
+};
+
 export type User = {
   id: string;
   email: string;
@@ -52,11 +57,17 @@ const API_BASE_URL = 'http://localhost:8000';
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [user, setUser] = useState<User | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [savedTimetables, setSavedTimetables] = useState<Timetable[]>([]);
   const [interestedCourses, setInterestedCourses] = useState<string[]>([]);
+  const [interestError, setInterestError] = useState<string | null>(null);
+  const [interestAlerts, setInterestAlerts] = useState<Course[]>([]);
+  const [serverAlerts, setServerAlerts] = useState<Course[]>([]);
+  const [timetableError, setTimetableError] = useState<string | null>(null);
+  const [isSavingTimetable, setIsSavingTimetable] = useState(false);
 
   const normalizeCourses = (data: any[]): Course[] => {
     const weekdayMap = ['일', '월', '화', '수', '목', '금', '토'];
@@ -122,6 +133,91 @@ export default function App() {
     });
   };
 
+  const normalizeTimetableFromApi = (data: any): Timetable => ({
+    id: String(data.id),
+    name: data.name ?? '저장된 시간표',
+    courses: Array.isArray(data.courses) ? data.courses : [],
+    createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+  });
+
+  const loadTimetables = async (token: string) => {
+    try {
+      setTimetableError(null);
+      const response = await fetch(`${API_BASE_URL}/api/timetables`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '시간표를 불러올 수 없습니다.');
+      }
+
+      const payload = await response.json();
+      const normalized = Array.isArray(payload)
+        ? payload.map((item: any) => normalizeTimetableFromApi(item))
+        : [];
+      setSavedTimetables(normalized);
+    } catch (error) {
+      setSavedTimetables([]);
+      setTimetableError(
+        error instanceof Error
+          ? error.message
+          : '시간표를 불러오는 중 오류가 발생했습니다.'
+      );
+    }
+  };
+
+  const loadInterestedCourses = async (token: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/courses/interests`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '관심 과목을 불러올 수 없습니다.');
+      }
+
+      const payload = await response.json();
+      const courseIds: string[] = Array.isArray(payload?.courses)
+        ? payload.courses.map((courseId: unknown) => String(courseId))
+        : [];
+      setInterestedCourses(courseIds);
+      setInterestError(null);
+    } catch (error) {
+      console.error('관심 과목 조회 오류:', error);
+      setInterestedCourses([]);
+      setInterestError(
+        error instanceof Error
+          ? error.message
+          : '관심 과목을 불러오는 중 오류가 발생했습니다.'
+      );
+    }
+  };
+
+  const loadDemandAlerts = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/courses/alerts`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '수요 알림을 불러올 수 없습니다.');
+      }
+
+      const payload = await response.json();
+      const normalized = Array.isArray(payload)
+        ? normalizeCourses(payload)
+        : [];
+      setServerAlerts(normalized);
+    } catch (error) {
+      console.error('수요 알림 조회 오류:', error);
+      setServerAlerts([]);
+    }
+  };
+
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -145,138 +241,211 @@ export default function App() {
     fetchCourses();
   }, []);
 
-  // 🔹 처음 앱 켰을 때 한 번만 실행: 토큰 있으면 로그인 상태로 간주
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setCurrentPage('home');
-      // TODO: 나중에 /api/auth/me 로 유저 정보 불러오면 setUser도 같이
+    loadDemandAlerts();
+  }, []);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('accessToken');
+    const storedUserRaw = localStorage.getItem('currentUser');
+
+    if (storedToken && storedUserRaw) {
+      try {
+        const savedUser = JSON.parse(storedUserRaw) as User;
+        setUser(savedUser);
+        setAuthToken(storedToken);
+        setCurrentPage('home');
+        loadTimetables(storedToken);
+        loadInterestedCourses(storedToken);
+      } catch (error) {
+        console.error('세션 복원 실패:', error);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('currentUser');
+      }
     }
   }, []);
 
-  // 🔹 로그인 시: 유저 정보 저장 + 이 학생의 저장된 시간표/관심 과목 로드
-  const handleLogin = (userData: User) => {
+  useEffect(() => {
+    if (!interestedCourses.length) {
+      setInterestAlerts([]);
+      return;
+    }
+
+    const alerts = serverAlerts.filter((course) =>
+      interestedCourses.includes(course.id)
+    );
+    setInterestAlerts(alerts);
+  }, [serverAlerts, interestedCourses]);
+
+  const handleLogin = async (userData: User, token: string) => {
     setUser(userData);
-
-    // 1) 저장된 시간표 불러오기
-    const savedTimetablesRaw = localStorage.getItem(
-      `timetables_${userData.studentId}`
-    );
-    if (savedTimetablesRaw) {
-      try {
-        const parsed = JSON.parse(savedTimetablesRaw) as Timetable[];
-        // createdAt이 문자열로 저장되어 있을 수 있으니 Date로 한 번 감싸줌
-        const restored = parsed.map((t) => ({
-          ...t,
-          createdAt: new Date(t.createdAt),
-        }));
-        setSavedTimetables(restored);
-      } catch (e) {
-        console.error('저장된 시간표 파싱 오류:', e);
-        setSavedTimetables([]);
-      }
-    } else {
-      setSavedTimetables([]);
-    }
-
-    // 2) 저장된 관심 과목 불러오기
-    const savedInterestedRaw = localStorage.getItem(
-      `interested_${userData.studentId}`
-    );
-    if (savedInterestedRaw) {
-      try {
-        const parsed = JSON.parse(savedInterestedRaw) as string[];
-        setInterestedCourses(parsed);
-      } catch (e) {
-        console.error('저장된 관심 과목 파싱 오류:', e);
-        setInterestedCourses([]);
-      }
-    } else {
-      setInterestedCourses([]);
-    }
-
+    setAuthToken(token);
+    localStorage.setItem('accessToken', token);
+    localStorage.setItem('currentUser', JSON.stringify(userData));
+    await Promise.all([loadTimetables(token), loadInterestedCourses(token)]);
+    setInterestError(null);
     setCurrentPage('home');
   };
 
   // 🔹 로그아웃: 백엔드에 알리고, 토큰/상태만 정리 (시간표는 localStorage에 남김)
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:3000/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      if (authToken) {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+      }
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      // 1) 토큰 제거
-      localStorage.removeItem('token');
-
-      // 2) 상태 초기화
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('currentUser');
+      setAuthToken(null);
       setUser(null);
       setCurrentPage('login');
       setSavedTimetables([]);
       setInterestedCourses([]);
+      setInterestAlerts([]);
+      setInterestError(null);
     }
   };
 
-  // 🔹 시간표 저장(메모리 상태)
-  const handleSaveTimetable = (timetable: Timetable) => {
-    setSavedTimetables((prev) => [...prev, timetable]);
+  const handleSaveTimetable = async (payload: TimetablePayload) => {
+    if (!authToken || !user) {
+      setTimetableError('로그인 후 시간표를 저장할 수 있습니다.');
+      setCurrentPage('login');
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    try {
+      setIsSavingTimetable(true);
+      setTimetableError(null);
+      const response = await fetch(`${API_BASE_URL}/api/timetables`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '시간표를 저장할 수 없습니다.');
+      }
+
+      const saved = await response.json();
+      const normalized = normalizeTimetableFromApi(saved);
+      setSavedTimetables((prev) => [normalized, ...prev]);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : '시간표 저장 중 오류가 발생했습니다.';
+      setTimetableError(message);
+      throw new Error(message);
+    } finally {
+      setIsSavingTimetable(false);
+    }
+  };
+
+  const handleDeleteTimetable = async (timetableId: string) => {
+    if (!authToken) {
+      setTimetableError('로그인 후 시간표를 삭제할 수 있습니다.');
+      setCurrentPage('login');
+      return;
+    }
+
+    try {
+      setTimetableError(null);
+      const response = await fetch(`${API_BASE_URL}/api/timetables/${timetableId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || '시간표를 삭제할 수 없습니다.');
+      }
+
+      setSavedTimetables((prev) => prev.filter((timetable) => timetable.id !== timetableId));
+    } catch (error) {
+      setTimetableError(
+        error instanceof Error
+          ? error.message
+          : '시간표 삭제 중 오류가 발생했습니다.'
+      );
+    }
   };
 
   // 🔹 관심 과목 토글
-  const handleToggleInterest = (courseId: string) => {
-    setInterestedCourses((prev) => {
-      const isInterested = prev.includes(courseId);
+  const handleToggleInterest = async (courseId: string) => {
+    if (!authToken) {
+      setInterestError('로그인 후 관심 과목을 관리할 수 있습니다.');
+      setCurrentPage('login');
+      return;
+    }
 
-      setCourses((current) =>
-        current.map((course) => {
-          if (course.id !== courseId) return course;
-
-          const delta = isInterested ? -1 : 1;
-          const capacity = Number.isFinite(course.capacity)
-            ? course.capacity
-            : Number.POSITIVE_INFINITY;
-          const updatedEnrolled = Math.min(
-            capacity,
-            Math.max(0, course.enrolled + delta)
-          );
-
-          return {
-            ...course,
-            enrolled: updatedEnrolled,
-          };
-        })
+    try {
+      setInterestError(null);
+      const response = await fetch(
+        `${API_BASE_URL}/api/courses/${courseId}/interest`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
       );
 
-      return isInterested
-        ? prev.filter((id) => id !== courseId)
-        : [...prev, courseId];
-    });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          payload?.message || '관심 과목 업데이트에 실패했습니다.'
+        );
+      }
+
+      const isInterested = payload?.isInterested as boolean | undefined;
+      const updatedCourse = payload?.course as
+        | { id: string; enrolled: number }
+        | undefined;
+
+      if (typeof isInterested === 'boolean') {
+        setInterestedCourses((prev) => {
+          if (isInterested) {
+            if (prev.includes(courseId)) return prev;
+            return [...prev, courseId];
+          }
+          return prev.filter((id) => id !== courseId);
+        });
+      }
+
+      if (updatedCourse) {
+        setCourses((current) =>
+          current.map((course) =>
+            course.id === updatedCourse.id
+              ? { ...course, enrolled: updatedCourse.enrolled }
+              : course
+          )
+        );
+      }
+    } catch (error) {
+      setInterestError(
+        error instanceof Error
+          ? error.message
+          : '관심 과목 처리 중 오류가 발생했습니다.'
+      );
+    }
   };
 
-  // 🔹 savedTimetables 변경될 때마다 localStorage에도 반영 (로그인된 상태일 때만)
-  useEffect(() => {
-    if (!user) return;
-    localStorage.setItem(
-      `timetables_${user.studentId}`,
-      JSON.stringify(savedTimetables)
-    );
-  }, [savedTimetables, user]);
-
-  // 🔹 관심 과목도 localStorage에 저장
-  useEffect(() => {
-    if (!user) return;
-    localStorage.setItem(
-      `interested_${user.studentId}`,
-      JSON.stringify(interestedCourses)
-    );
-  }, [interestedCourses, user]);
-
   // 로그인 페이지
-  if (currentPage === 'login') {
+  if (currentPage === 'login' || !user) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
@@ -362,13 +531,42 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentPage === 'home' && (
-          <HomePage onNavigate={setCurrentPage} user={user!} />
+        {timetableError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            시간표 처리 중 오류가 발생했습니다. {timetableError}
+          </div>
+        )}
+
+        {interestError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            관심 과목 처리 중 오류가 발생했습니다. {interestError}
+          </div>
+        )}
+
+        {interestAlerts.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <strong className="block text-base">정원 임박 알림</strong>
+            <p className="mt-1">
+              관심 과목 중 정원이 90% 이상 찬 과목입니다. 빠르게 신청을 준비하세요.
+            </p>
+            <ul className="mt-2 list-disc pl-5">
+              {interestAlerts.map((course) => (
+                <li key={course.id}>
+                  {course.name} ({course.enrolled}/{course.capacity})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {currentPage === 'home' && user && (
+          <HomePage onNavigate={setCurrentPage} user={user} />
         )}
         {currentPage === 'timetable' && (
           <TimetableGenerator
             courses={courses}
             onSave={handleSaveTimetable}
+            isSaving={isSavingTimetable}
           />
         )}
         {currentPage === 'courses' && (
@@ -380,19 +578,20 @@ export default function App() {
             onToggleInterest={handleToggleInterest}
           />
         )}
-        {currentPage === 'ai' && (
+        {currentPage === 'ai' && user && (
           <AIRecommendation
-            user={user!}
+            user={user}
             onToggleInterest={handleToggleInterest}
             interestedCourses={interestedCourses}
           />
         )}
-        {currentPage === 'mypage' && (
+        {currentPage === 'mypage' && user && (
           <MyPage
-            user={user!}
+            user={user}
             savedTimetables={savedTimetables}
             interestedCourses={interestedCourses}
             courses={courses}
+            onDeleteTimetable={handleDeleteTimetable}
           />
         )}
       </main>
