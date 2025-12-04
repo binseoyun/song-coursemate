@@ -18,7 +18,11 @@ DB조회 코드 삭제(python이 mock_db 가지고 있어서)
 */
         // 2. Python AI 서버로 요청 보내기
         // (주의: Python 서버는 5000번 포트)
-        const response = await axios.post('http://localhost:5000/recommend', {
+        
+        //docker-composel.yaml에서 설정한 경로로
+        const aiUrl = process.env.AI_SERVER_URL || 'http://localhost:5000';
+
+        const response = await axios.post(`${aiUrl}/recommend`, {
             major,
             job_interest: jobInterest,
             //courses: courseData

@@ -1,0 +1,4 @@
+# node_modules 폴더는 절대 복사하지 마! (도커 안에서 새로 설치할 거니까)
+**/node_modules
+**/.git
+**/.env

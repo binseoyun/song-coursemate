@@ -4,7 +4,7 @@
  */
 
 const sequelize = require('./config/database');
-const Class = require('./models/class');
+const Class = require('./models/Class');
 const ClassSchedule = require('./models/ClassSchedule');
 
 // 새 스키마에 맞는 초기 데이터 (Class 필드 + schedules 배열)

@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # 1. 데이터베이스
+  database:
+    build: ./database
+    container_name: mysql-container
+    ports:
+      - "3307:3306" # 내 컴퓨터 3307 -> 컨테이너 3306 연결
+    environment:
+      MYSQL_ROOT_PASSWORD: binseoyun7627!
+      MYSQL_DATABASE: cloudsystem_db
+    volumes:
+      - mysql-data:/var/lib/mysql # 데이터 영구 저장
+
+    #  DB가 진짜 켜졌는지 10초마다 검사
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5  
+
+  # 2. AI 서버
+  ai-server:
+    build: ./backend/ai-server
+    container_name: ai-server-container
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/ai-server/.env # API 키 등 환경변수
+
+  # 3. 백엔드 서버
+  backend:
+    build: ./backend
+    container_name: backend-container
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+      ai-server:
+        condition: service_started
+    environment:
+      # 도커 내부 통신용 주소 (서비스 이름 사용)
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: binseoyun7627!
+      DB_NAME: cloudsystem_db
+      AI_SERVER_URL: http://ai-server:5000 # AI 서버 주소
+
+  # 4. 프론트엔드
+  frontend:
+    build: "./frontend/Course Registration Platform"
+    container_name: frontend-container
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
