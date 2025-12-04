@@ -2,7 +2,12 @@ version: "3.9"
 
 services:
   db:
-    image: mysql:8.0
+  # ★ [수정 1] 공식 이미지 대신 Dockerfile로 빌드
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: my-database:v1  # ★ [수정 2] K8s와 똑같은 이름표 붙이기
+    #image: mysql:8.0
     restart: unless-stopped
     env_file:
       - .env.docker
