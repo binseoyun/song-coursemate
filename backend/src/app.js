@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const sequelize = require('./config/database'); // DB 연결 설정
 const User = require('./models/User'); // 모델 불러오기
-const Class = require('./models/class'); // Class 모델 불러오기
+const Class = require('./models/Class'); // Class 모델 불러오기
 const ClassSchedule = require('./models/ClassSchedule');
 const authRoutes = require('./routes/authRoutes');
   //ai 관련

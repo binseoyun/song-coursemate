@@ -23,8 +23,9 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# 2. 모델 설정
-model = genai.GenerativeModel("models/gemini-pro-latest")
+# 2. 모델 설정 (환경 변수를 통해 모델을 바꿀 수 있게 함)
+GENAI_MODEL = os.getenv("GENAI_MODEL", "models/gemini-pro-latest")
+model = genai.GenerativeModel(GENAI_MODEL)
 
 
 app = FastAPI()
