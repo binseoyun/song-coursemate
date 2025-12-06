@@ -1333,6 +1333,7 @@ async function seedDatabase() {
         where: { id: c.code },
         defaults: {
           id: c.code,
+          code: c.code,
           name: c.name,
           professor: c.professor,
           credits: c.credits,
