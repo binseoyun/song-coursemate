@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-recommendation-config
+  namespace: songtime
+data:
+  JOB_RECOMMENDATION_CONFIG: |-
+    {
+      "frontend": ["21003757-1", "WEB201", "21105365-1"],
+      "backend": ["21000557-3", "21102538-2", "CS450"],
+      "data": ["21102990-1", "21105229-1", "21102905-1"]
+    }
+

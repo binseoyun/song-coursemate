@@ -31,3 +31,4 @@ const Timetable = sequelize.define(
 
 module.exports = Timetable;
 
+

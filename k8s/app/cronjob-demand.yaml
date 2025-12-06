@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: demand-aggregator
+  namespace: songtime
+spec:
+  schedule: "*/30 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: aggregator
+              image: curlimages/curl:8.10.1
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: BACKEND_BASE_URL
+                  value: http://backend:8000
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: backend-secrets
+                      key: CRON_SECRET
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "Triggering demand aggregation..."
+                  curl -fsS -X POST \
+                    -H "x-cron-secret: ${CRON_SECRET}" \
+                    "${BACKEND_BASE_URL}/api/courses/aggregate"
+                  echo "Fetching alerts for logging..."
+                  curl -fsS "${BACKEND_BASE_URL}/api/courses/alerts"
+

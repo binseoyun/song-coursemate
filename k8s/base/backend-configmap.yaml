@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: songtime
+data:
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_NAME: "cloudsystem_db"
+  DB_USER: appuser
+  AI_SERVER_URL: "http://ai-service:5000"
+  COURSE_API_URL: "http://backend:8000/api/courses"
+  GENAI_MODEL: "models/gemini-pro-latest"
+
