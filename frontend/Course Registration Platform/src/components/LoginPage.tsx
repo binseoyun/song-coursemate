@@ -11,6 +11,7 @@ type LoginPageProps = {
 const API_BASE_URL = 'http://localhost:8000/api/auth'; 
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  
   const [isSignup, setIsSignup] = useState(false);
   const [formData, setFormData] = useState({
     studentId: '',

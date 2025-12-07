@@ -8,6 +8,7 @@ spec:
   ports:
   - port: 3000
     targetPort: 3000
+    nodePort: 32565
   selector:
     app: frontend
 ---
