@@ -56,6 +56,8 @@ services:
       COURSE_API_URL: ${COURSE_API_URL:-http://backend:8000/api/courses}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GENAI_MODEL: ${GENAI_MODEL:-models/gemini-pro-latest}
+   
+
     depends_on:
       - backend
     ports:
