@@ -2,7 +2,12 @@ version: "3.9"
 
 services:
   db:
-    image: mysql:8.0
+  # ★ [수정 1] 공식 이미지 대신 Dockerfile로 빌드
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: my-database:v1  # ★ [수정 2] K8s와 똑같은 이름표 붙이기
+    #image: mysql:8.0
     restart: unless-stopped
     env_file:
       - .env.docker
@@ -50,7 +55,7 @@ services:
     environment:
       COURSE_API_URL: ${COURSE_API_URL:-http://backend:8000/api/courses}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GENAI_MODEL: ${GENAI_MODEL:-gemini-1.5-flash-latest}
+      GENAI_MODEL: ${GENAI_MODEL:-models/gemini-pro-latest}
     depends_on:
       - backend
     ports:
@@ -60,7 +65,7 @@ services:
   frontend:
     build:
       context: ./frontend/Course Registration Platform
-      dockerfile: ../../Dockerfile.frontend
+      dockerfile: Dockerfile
     depends_on:
       - backend
     ports:

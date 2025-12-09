@@ -14,6 +14,11 @@ const timetableRoutes = require('./routes/timetableRoutes');
 
 const app = express();
 
+// 간단한 루트 헬스 체크: livenessProbe가 404로 죽지 않도록 200을 보장한다.
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'backend alive' });
+});
+
 app.get('/health', async (req, res) => {
   try {
     await sequelize.authenticate();
@@ -24,7 +29,8 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+const allowedOrigins = ['http://127.0.0.1:3000'];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
