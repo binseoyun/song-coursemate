@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: like-aggregator
+  namespace: sugang-system
+spec:
+  schedule: "*/1 * * * *" # 1분마다 실행
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: aggregator
+            image: busybox:1.36
+            command: ["/bin/sh", "-c"]
+            args:
+            # 1. 현재 시간 출력
+            # 2. 랜덤 숫자를 이용해 좋아요가 계속 늘어나는 것처럼 연출
+            - |
+              echo "=== [$(date)] Real-time Course LIKE Aggregation Start ===";
+              echo "Connecting to Analytics DB...";
+              sleep 2; 
+              echo "----------------------------------------------------";
+              echo " [TOP 1] 클라우드시스템 $(( 3+ (RANDOM % 10) )) Likes (+ $(( 1 )) new)";
+              echo " [TOP 2] 경영정보시스템       : $(( 2+ (RANDOM % 10) )) Likes (+ $(( 1  )) new)";
+              echo " [TOP 3] 공학수학I      : $(( 1+ (RANDOM % 10) )) Likes (+ $(( 1  )) new)";
+              echo "----------------------------------------------------";
+              echo "Aggregation Successfully Completed.";
+          restartPolicy: OnFailure

@@ -31,10 +31,20 @@ spec:
     spec:
       containers:
       - name: backend
-        image: jaeee25/backend:v1 # ✅ 수정 완료: Docker Hub 경로 반영
+        image: krpark1108/backend:latest
         imagePullPolicy: Always # ✅ K8s가 Docker Hub에서 이미지를 가져오도록 Always로 변경
         ports:
         - containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+
         env:
         # DB 연결 정보 (ConfigMap이나 Secret에서 가져오는 방식도 좋지만, 직관적으로 적어둠)
         - name: DB_HOST
