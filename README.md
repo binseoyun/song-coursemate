@@ -119,11 +119,11 @@ Terminal B (Backend): http://localhost:8000
 kubectl port-forward svc/backend-service 8000:8000 -n sugang-system
 Terminal C (AI Server): http://localhost:5000
 
-PowerShell
+
 
 kubectl port-forward svc/ai-server-service 5000:5000 -n sugang-system
 
-프로젝트 전체 구조는 아래 pdf에 자세히 기술되어있습니다.
+#프로젝트 전체 구조는 아래 pdf에 자세히 기술되어있습니다.
 [song-coursemate.pdf](https://github.com/user-attachments/files/24499380/song-coursemate.pdf)
 
 
