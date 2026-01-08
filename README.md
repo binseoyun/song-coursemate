@@ -1,4 +1,4 @@
-#숙명여대 수강신청 도우미 
+# 숙명여대 수강신청 도우미 
 숙명여자대학교 컴퓨터과학과 학생들을 위한 마이크로서비스 기반(MSA) 수강신청 및 과목 추천 플랫폼입니다. Docker와 Kubernetes(Kind) 환경에서 구동되며, AI 기반 과목 추천 기능을 제공합니다.
 
 🛠 Tech Stack
@@ -123,7 +123,7 @@ Terminal C (AI Server): http://localhost:5000
 
 kubectl port-forward svc/ai-server-service 5000:5000 -n sugang-system
 
-#프로젝트 전체 구조는 아래 pdf에 자세히 기술되어있습니다.
+# 프로젝트 전체 구조는 아래 pdf에 자세히 기술되어있습니다.
 [song-coursemate.pdf](https://github.com/user-attachments/files/24499380/song-coursemate.pdf)
 
 
